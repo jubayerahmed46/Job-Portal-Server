@@ -4,11 +4,8 @@
   "description": "Job Portal Backend ",
   "main": "app.js",
   "scripts": {
+    "start": "node app.js",
     "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+ssh://git@github.com/xubayers/Job-Portal-Server.git"
   },
   "keywords": [
     "job",
@@ -16,14 +13,11 @@
   ],
   "author": "Jubayer Ahmed",
   "license": "ISC",
-  "bugs": {
-    "url": "https://github.com/xubayers/Job-Portal-Server/issues"
-  },
-  "homepage": "https://github.com/xubayers/Job-Portal-Server#readme",
   "dependencies": {
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
-    "mongodb": "^6.12.0"
+    "mongodb": "^6.12.0",
+    "nodemon": "^3.1.9"
   }
 }
