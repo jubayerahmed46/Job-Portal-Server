@@ -19,9 +19,12 @@ const client = new MongoClient(uri);
     const jobsCollection = await database.collection("jobs");
     const applicationsColletion = await database.collection("applications");
 
-    app.get("/jobs", async (_, res) => {
+    app.get("/jobs", async (req, res) => {
       try {
-        const result = await jobsCollection.find().toArray();
+        console.log(req.query.email);
+        const query = req.query.email ? { hr_email: req.query.email } : {};
+        console.log(query);
+        const result = await jobsCollection.find(query).toArray();
 
         if (!result.length) {
           res.send("Data not found!");
@@ -55,6 +58,16 @@ const client = new MongoClient(uri);
         res.send(result);
       } catch (error) {
         res.send("server error", error);
+      }
+    });
+
+    app.post("/jobs", async (req, res) => {
+      try {
+        const doc = req.body;
+        const result = await jobsCollection.insertOne(doc);
+        res.send(result);
+      } catch (error) {
+        res.send(`server error: ${error}`);
       }
     });
 
