@@ -13,28 +13,38 @@ const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster
 const client = new MongoClient(uri);
 
 (async function () {
+  "use strict";
   try {
     await client.connect();
     const database = client.db("Job-PortalDB");
     const jobsCollection = await database.collection("jobs");
-    const applicationsColletion = await database.collection("applications");
+    const applicationsCollection = await database.collection("applications");
 
+    // get all running jobs || get reqruter data using query param
     app.get("/jobs", async (req, res) => {
       try {
-        console.log(req.query.email);
-        const query = req.query.email ? { hr_email: req.query.email } : {};
-        console.log(query);
-        const result = await jobsCollection.find(query).toArray();
+        let query = {};
+        let default_limit = 8;
 
-        if (!result.length) {
+        if (req.query.email) {
+          query = { hr_email: req.query.email };
+        }
+
+        const jobs = await jobsCollection
+          .find(query)
+          .limit(default_limit)
+          .toArray();
+
+        if (!jobs.length) {
           res.send("Data not found!");
         }
-        res.send(result);
+        res.send(jobs);
       } catch (error) {
-        res.send("server error", error);
+        res.send(`server error : ${error}`);
       }
     });
 
+    // See every job details
     app.get("/jobs/details/:id", async (req, res) => {
       try {
         const id = req.params.id;
@@ -44,23 +54,86 @@ const client = new MongoClient(uri);
 
         res.send(result);
       } catch (error) {
-        res.send("server error", error);
+        res.send(`server error : ${error}`);
       }
     });
 
-    app.post("/applications", async (req, res) => {
+    // get a specific job application || only for a reqruter
+    app.get("/job/view-applications/:job_id", async (req, res) => {
       try {
-        const doc = req.body;
-        console.log(doc);
+        const id = req.params.job_id;
+        const query = { job_id: id };
 
-        const result = await applicationsColletion.insertOne(doc);
+        const result = await applicationsCollection.find(query).toArray();
+        res.send(result);
+      } catch (error) {
+        res.send(`server error : ${error}`);
+      }
+    });
+
+    // update  job seeker applications and make a status
+    app.patch("/job/applicatons/application/:id", async (req, res) => {
+      try {
+        const body = req.body;
+        console.log("triggered");
+        const id = req.params.id;
+        const filter = { _id: new ObjectId(id) };
+        const option = {
+          $upser: true,
+        };
+        const updateDoc = {
+          $set: {
+            status: body.status,
+          },
+        };
+
+        const result = await applicationsCollection.updateOne(
+          filter,
+          updateDoc,
+          option
+        );
 
         res.send(result);
       } catch (error) {
-        res.send("server error", error);
+        res.send(`server error : ${error}`);
       }
     });
 
+    // apply on a job as a job seeker
+    app.post("/applications", async (req, res) => {
+      try {
+        const doc = req.body;
+
+        const applyJob = await applicationsCollection.insertOne(doc);
+
+        const id = doc.job_id;
+        const query = { _id: new ObjectId(id) };
+        const result = await jobsCollection.findOne(query);
+        let countApplication = 0;
+
+        if (result.countApplication) {
+          countApplication = result.countApplication + 1;
+        } else {
+          countApplication = 1;
+        }
+
+        // now update the job info
+        const filter = { _id: new ObjectId(id) };
+        const updateDoc = {
+          $set: {
+            applicationCount: countApplication,
+          },
+        };
+
+        await jobsCollection.updateOne(filter, updateDoc);
+
+        res.send(applyJob);
+      } catch (error) {
+        res.send(`server error : ${error}`);
+      }
+    });
+
+    // post a new job as a reqruter
     app.post("/jobs", async (req, res) => {
       try {
         const doc = req.body;
@@ -71,11 +144,12 @@ const client = new MongoClient(uri);
       }
     });
 
+    // load all application of current user/reqruter
     app.get("/my-applications", async (req, res) => {
       try {
         const email = req.query.email;
         const query = { email };
-        const applications = await applicationsColletion.find(query).toArray();
+        const applications = await applicationsCollection.find(query).toArray();
 
         for (const application of applications) {
           const jobQuery = { _id: new ObjectId(application.job_id) };
@@ -95,10 +169,11 @@ const client = new MongoClient(uri);
       }
     });
 
+    // delete reqruter data from privet route
     app.delete("/my-applications/:id", async (req, res) => {
       try {
         const filter = { _id: new ObjectId(req.params.id) };
-        const result = await applicationsColletion.deleteOne(filter);
+        const result = await applicationsCollection.deleteOne(filter);
 
         res.send(result);
       } catch (error) {
